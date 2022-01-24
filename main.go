@@ -14,8 +14,12 @@ import (
 )
 
 type Shelly struct {
-	Temperature float64       `json:"temperature"`
-	Meters      []ShellyMeter `json:"meters"`
+	Temperature float64 `json:"temperature"`
+	// inconsistent API .. (=_=)
+	Tmp struct {
+		Temperature float64 `json:"tC"`
+	} `json:"tmp"`
+	Meters []ShellyMeter `json:"meters"`
 }
 
 type ShellyMeter struct {
@@ -78,11 +82,20 @@ func (c *ShellyCollector) Collect(ch chan<- prometheus.Metric) {
 			s.TotalPower,
 		)
 	}
-	ch <- prometheus.MustNewConstMetric(
-		c.temperatureDesc,
-		prometheus.GaugeValue,
-		shelly.Temperature,
-	)
+	// hack to check which field to be used assuming that temperature is never 0 Celcius
+	if shelly.Temperature == 0 {
+		ch <- prometheus.MustNewConstMetric(
+			c.temperatureDesc,
+			prometheus.GaugeValue,
+			shelly.Tmp.Temperature,
+		)
+	} else {
+		ch <- prometheus.MustNewConstMetric(
+			c.temperatureDesc,
+			prometheus.GaugeValue,
+			shelly.Temperature,
+		)
+	}
 }
 
 func NewShellyCollector(t string) *ShellyCollector {
