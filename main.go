@@ -14,12 +14,11 @@ import (
 )
 
 type Shelly struct {
-	Temperature float64 `json:"temperature"`
-	// inconsistent API .. (=_=)
 	Tmp struct {
 		Temperature float64 `json:"tC"`
 	} `json:"tmp"`
 	Meters []ShellyMeter `json:"meters"`
+    Uptime float64 `json:"uptime"`
 }
 
 type ShellyMeter struct {
@@ -32,12 +31,14 @@ type ShellyCollector struct {
 	powerDesc       *prometheus.Desc
 	totalPowerDesc  *prometheus.Desc
 	temperatureDesc *prometheus.Desc
+	uptimeDesc *prometheus.Desc
 }
 
 func (c *ShellyCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.powerDesc
 	ch <- c.totalPowerDesc
 	ch <- c.temperatureDesc
+	ch <- c.uptimeDesc
 }
 
 func (c *ShellyCollector) Collect(ch chan<- prometheus.Metric) {
@@ -82,20 +83,16 @@ func (c *ShellyCollector) Collect(ch chan<- prometheus.Metric) {
 			s.TotalPower,
 		)
 	}
-	// hack to check which field to be used assuming that temperature is never 0 Celcius
-	if shelly.Temperature == 0 {
-		ch <- prometheus.MustNewConstMetric(
-			c.temperatureDesc,
-			prometheus.GaugeValue,
-			shelly.Tmp.Temperature,
-		)
-	} else {
-		ch <- prometheus.MustNewConstMetric(
-			c.temperatureDesc,
-			prometheus.GaugeValue,
-			shelly.Temperature,
-		)
-	}
+    ch <- prometheus.MustNewConstMetric(
+        c.temperatureDesc,
+        prometheus.GaugeValue,
+        shelly.Tmp.Temperature,
+    )
+    ch <- prometheus.MustNewConstMetric(
+        c.uptimeDesc,
+        prometheus.GaugeValue,
+        shelly.Uptime,
+    )
 }
 
 func NewShellyCollector(t string) *ShellyCollector {
@@ -104,6 +101,7 @@ func NewShellyCollector(t string) *ShellyCollector {
 		powerDesc:       prometheus.NewDesc("shelly_power_watts", "Current power consumption in watts.", nil, nil),
 		totalPowerDesc:  prometheus.NewDesc("shelly_total_power_watts", "Total power consumption in watts since reboot.", nil, nil),
 		temperatureDesc: prometheus.NewDesc("shelly_temperature", "Current temperature of shelly device in celcius.", nil, nil),
+		uptimeDesc: prometheus.NewDesc("shelly_uptime", "Total uptime of shelly device in seconds.", nil, nil),
 	}
 }
 
